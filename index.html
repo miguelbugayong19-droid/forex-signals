@@ -330,8 +330,8 @@ function renderMain(price, chg, chgPct, dayLow, dayHigh, avg50, avg200, sig){
   <div class="price-meta">
     <div class="meta-box"><div class="meta-lbl">Day Low</div><div class="meta-val">$${fmt(dayLow)}</div></div>
     <div class="meta-box"><div class="meta-lbl">Day High</div><div class="meta-val">$${fmt(dayHigh)}</div></div>
-    <div class="meta-box"><div class="meta-lbl">50D Avg</div><div class="meta-val">$${fmt(avg50)}</div></div>
-    <div class="meta-box"><div class="meta-lbl">200D Avg</div><div class="meta-val">$${fmt(avg200)}</div></div>
+    <div class="meta-box"><div class="meta-lbl">Open</div><div class="meta-val">$${fmt(avg50)}</div></div>
+    <div class="meta-box"><div class="meta-lbl">Prev Close</div><div class="meta-val">$${fmt(avg200)}</div></div>
   </div>
 </div>
 
@@ -400,7 +400,7 @@ async function loadData(){
     const change = parseFloat(q.change ?? 0);
     const changePct = parseFloat(q.percent_change ?? 0);
 
-    renderMain(price, change, changePct, parseFloat(q.low), parseFloat(q.high), null, null, sig);
+    renderMain(price, change, changePct, parseFloat(q.low), parseFloat(q.high), parseFloat(q.open), parseFloat(q.previous_close), sig);
 
     // Auto-refresh every 15 min (matches signal monitor cadence)
     clearTimeout(refreshTimer);
