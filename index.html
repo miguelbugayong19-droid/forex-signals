@@ -156,15 +156,15 @@ body{padding:env(safe-area-inset-top,12px) env(safe-area-inset-right,12px) env(s
   </div>
 
   <div class="setup-notice" id="setupNotice" style="display:none">
-    ⚠️ First-time setup — enter your FMP API key and GitHub details below to activate live data.
+    ⚠️ First-time setup — enter your Twelve Data API key and GitHub details below to activate live data.
   </div>
 
   <div class="settings-card">
-    <h3>🔑 FMP API Key</h3>
+    <h3>🔑 Twelve Data API Key</h3>
     <div class="field">
-      <label>Financial Modeling Prep API Key</label>
-      <input type="password" id="fmpKey" placeholder="Enter your FMP API key">
-      <small>Get your free key at financialmodelingprep.com/developer/docs → My API Key</small>
+      <label>Twelve Data API Key</label>
+      <input type="password" id="fmpKey" placeholder="Enter your Twelve Data API key">
+      <small>Get your free key at twelvedata.com → sign up free → Dashboard → API Keys</small>
     </div>
   </div>
 
@@ -307,7 +307,7 @@ function renderMain(price, chg, chgPct, dayLow, dayHigh, avg50, avg200, sig){
 
   const now = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
   $('lastUpdated').textContent = `Live · Updated ${now}`;
-  $('footer').textContent = `Signal params: ${sig.date} · XAUUSD via FMP`;
+  $('footer').textContent = `Signal params: ${sig.date} · XAU/USD via Twelve Data`;
 
   const actionHtml = bSt==='IN_ZONE'
     ? `<div class="s-action">⚡ CHECK 15M CHART NOW</div>`
@@ -385,25 +385,26 @@ async function loadData(){
 
   try{
     const sigUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
-    const priceUrl = `https://financialmodelingprep.com/stable/quote?symbol=XAUUSD&apikey=${fmpKey}`;
+    const priceUrl = `https://api.twelvedata.com/quote?symbol=XAU/USD&apikey=${fmpKey}`;
 
     const [sigRes, priceRes] = await Promise.all([fetch(sigUrl), fetch(priceUrl)]);
     if(!sigRes.ok) throw new Error(`Can't fetch signal params (${sigRes.status})`);
-    if(!priceRes.ok) throw new Error(`FMP API error (${priceRes.status})`);
+    if(!priceRes.ok) throw new Error(`Price API error (${priceRes.status})`);
 
     const sig = await sigRes.json();
-    const priceData = await priceRes.json();
-    const q = Array.isArray(priceData) ? priceData[0] : priceData;
+    const q = await priceRes.json();
 
-    const price = q.price;
-    const change = q.change ?? 0;
-    const changePct = q.changesPercentage ?? q.changePercentage ?? 0;
+    if(q.status === 'error') throw new Error(`Twelve Data: ${q.message}`);
 
-    renderMain(price, change, changePct, q.dayLow, q.dayHigh, q.priceAvg50 ?? null, q.priceAvg200 ?? null, sig);
+    const price = parseFloat(q.close);
+    const change = parseFloat(q.change ?? 0);
+    const changePct = parseFloat(q.percent_change ?? 0);
 
-    // Auto-refresh every 60s — single timeout, no ticking
+    renderMain(price, change, changePct, parseFloat(q.low), parseFloat(q.high), null, null, sig);
+
+    // Auto-refresh every 15 min (matches signal monitor cadence)
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(loadData, 60000);
+    refreshTimer = setTimeout(loadData, 900000);
 
   }catch(err){
     $('mainContent').innerHTML = `<div class="err-box">⚠️ ${err.message}<br><br><button class="btn" onclick="loadData()" style="margin-top:8px">Try Again</button></div>`;
