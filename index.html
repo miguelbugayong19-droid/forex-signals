@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="XAU Signals">
+<link rel="manifest" href="manifest.json">
+<title>XAUUSD Signals</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1117;--card:#161b22;--border:#30363d;--border2:#21262d;--text:#e6edf3;--text2:#c9d1d9;--muted:#8b949e;--dim:#484f58;--green:#3fb950;--red:#f85149;--blue:#58a6ff;--amber:#e3b341;--green-bg:#0f2a1a;--green-bd:#238636;--red-bg:#2d0f0f;--red-bd:#da3633;--amber-bg:#2d1f00;--amber-bd:#9e6a03}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;overscroll-behavior:none}
+body{padding:env(safe-area-inset-top,12px) env(safe-area-inset-right,12px) env(safe-area-inset-bottom,12px) env(safe-area-inset-left,12px);padding-top:max(env(safe-area-inset-top),12px)}
+
+/* SCREENS */
+.screen{display:none;flex-direction:column;gap:10px;min-height:100vh}
+.screen.active{display:flex}
+
+/* HEADER */
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.topbar h1{font-size:16px;font-weight:800;letter-spacing:-.3px}
+.topbar-sub{font-size:10px;color:var(--dim);margin-top:1px}
+.icon-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:16px;cursor:pointer;color:var(--text);line-height:1}
+
+/* PRICE CARD */
+.price-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+.price-row{display:flex;justify-content:space-between;align-items:flex-start}
+.price-big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.price-change{font-size:13px;font-weight:700;margin-top:4px}
+.price-change.up{color:var(--green)}
+.price-change.down{color:var(--red)}
+.price-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.meta-box{background:var(--bg);border-radius:8px;padding:7px 10px}
+.meta-lbl{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.meta-val{font-size:12px;font-weight:700;color:var(--text2);margin-top:1px}
+
+/* STATUS */
+.status-banner{border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;border:1px solid}
+.s-icon{font-size:28px;flex-shrink:0}
+.s-body{flex:1}
+.s-title{font-size:18px;font-weight:800;line-height:1.2}
+.s-hint{font-size:11px;margin-top:3px;opacity:.75}
+.s-action{font-size:11px;font-weight:800;padding:8px 12px;border-radius:8px;border:1px solid;text-align:center;margin-top:10px}
+.banner-standby{background:var(--card);border-color:var(--border);color:var(--muted)}
+.banner-standby .s-action{background:var(--border2);color:var(--muted);border-color:var(--border)}
+.banner-approaching{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.banner-approaching .s-action{background:#3d2200;border-color:var(--amber-bd);color:var(--amber)}
+.banner-inzone{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.banner-inzone .s-action{background:#122d1c;border-color:var(--green-bd);color:var(--green)}
+.banner-invalidated{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.banner-invalidated .s-action{background:#3d1212;border-color:var(--red-bd);color:var(--red)}
+
+/* SETUP CARDS */
+.setup-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden}
+.setup-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.setup-card.short::before{background:linear-gradient(90deg,var(--red-bd),var(--red))}
+.setup-card.long::before{background:linear-gradient(90deg,var(--green-bd),var(--green))}
+.setup-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.setup-tag{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.setup-dir{font-size:20px;font-weight:900;margin-top:3px;display:flex;align-items:center;gap:8px}
+.setup-dir.short{color:var(--red)}
+.setup-dir.long{color:var(--green)}
+.pill{font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:uppercase}
+.pill-p{background:#1c3a6e;color:var(--blue)}
+.pill-f{background:#2d1f5e;color:#a5a0f8}
+.st-mini{text-align:right}
+.st-emoji{font-size:22px}
+.st-lbl{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase}
+.div{height:1px;background:var(--border2);margin:8px 0}
+.row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.rl{font-size:11px;color:var(--muted)}
+.rv{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text2)}
+.rv.r{color:var(--red)}
+.rv.g{color:var(--green)}
+.rv.b{color:var(--blue)}
+.dist-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block}
+.dc-standby{background:var(--border2);color:var(--muted)}
+.dc-approaching{background:var(--amber-bg);color:var(--amber)}
+.dc-inzone{background:var(--green-bg);color:var(--green)}
+.dc-invalidated{background:var(--red-bg);color:var(--red)}
+.sig-box{margin-top:8px;font-size:10px;color:var(--muted);background:var(--bg);border-left:3px solid var(--border);padding:6px 8px;border-radius:0 6px 6px 0;line-height:1.5;font-style:italic}
+.sig-box.live{background:var(--green-bg);border-color:var(--green);color:var(--green);font-style:normal;font-weight:700}
+
+/* INFO CARD */
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+.card-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin-bottom:10px}
+.irow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2);font-size:11px}
+.irow:last-child{border-bottom:none}
+.il{color:var(--muted)}
+.iv{font-weight:700;color:var(--text2)}
+.trump-HIGH{background:var(--red-bg);color:var(--red);font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px}
+.trump-MEDIUM{background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px}
+.trump-LOW{background:var(--green-bg);color:var(--green);font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px}
+.lvls{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.lvl-r{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--red-bg);color:var(--red)}
+.lvl-s{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--green-bg);color:var(--green)}
+.notes-box{font-size:10px;color:var(--muted);background:#1c1a10;border-left:3px solid var(--amber-bd);padding:7px 9px;border-radius:0 6px 6px 0;line-height:1.6;margin-top:8px}
+.bias-BEARISH{color:var(--red)}
+.bias-BULLISH{color:var(--green)}
+.bias-NEUTRAL{color:var(--muted)}
+
+/* FOOTER */
+.footer{font-size:10px;color:var(--dim);text-align:center;padding-bottom:env(safe-area-inset-bottom,8px)}
+
+/* SETTINGS SCREEN */
+.settings-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.settings-card h3{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text)}
+.field{margin-bottom:12px}
+.field label{font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
+.field input:focus{border-color:var(--blue)}
+.field small{font-size:10px;color:var(--dim);margin-top:4px;display:block;line-height:1.5}
+.btn{width:100%;background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn:active{background:#388bfd}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);margin-top:8px}
+.save-msg{font-size:11px;color:var(--green);text-align:center;margin-top:8px;min-height:16px}
+.setup-notice{background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:10px;padding:12px;font-size:12px;color:var(--amber);line-height:1.6;margin-bottom:4px}
+
+/* LOADER */
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--dim);font-size:13px;min-height:300px}
+.spinner{width:28px;height:28px;border:3px solid var(--border2);border-top-color:#1f6feb;border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err-box{background:var(--red-bg);border:1px solid var(--red-bd);border-radius:10px;padding:14px;color:var(--red);text-align:center;font-size:13px}
+
+/* REFRESH BTN (floating) */
+.fab{position:fixed;bottom:calc(env(safe-area-inset-bottom,16px) + 16px);right:16px;background:#1f6feb;color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100}
+.fab:active{background:#388bfd;transform:scale(.95)}
+.fab.loading{background:#21262d;pointer-events:none}
+</style>
+</head>
+<body>
+
+<!-- MAIN SCREEN -->
+<div id="mainScreen" class="screen active">
+  <div class="topbar">
+    <div>
+      <h1>📊 XAUUSD Signals</h1>
+      <div class="topbar-sub" id="lastUpdated">Loading…</div>
+    </div>
+    <button class="icon-btn" onclick="showSettings()">⚙️</button>
+  </div>
+  <div id="mainContent">
+    <div class="loader"><div class="spinner"></div>Fetching live data…</div>
+  </div>
+  <div class="footer" id="footer"></div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="settingsScreen" class="screen">
+  <div class="topbar">
+    <div><h1>⚙️ Settings</h1></div>
+    <button class="icon-btn" onclick="showMain()">✕</button>
+  </div>
+
+  <div class="setup-notice" id="setupNotice" style="display:none">
+    ⚠️ First-time setup — enter your FMP API key and GitHub details below to activate live data.
+  </div>
+
+  <div class="settings-card">
+    <h3>🔑 FMP API Key</h3>
+    <div class="field">
+      <label>Financial Modeling Prep API Key</label>
+      <input type="password" id="fmpKey" placeholder="Enter your FMP API key">
+      <small>Get your free key at financialmodelingprep.com/developer/docs → My API Key</small>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3>🐙 GitHub Signal Source</h3>
+    <div class="field">
+      <label>GitHub Username</label>
+      <input type="text" id="ghUser" placeholder="e.g. yourusername">
+    </div>
+    <div class="field">
+      <label>Repository Name</label>
+      <input type="text" id="ghRepo" placeholder="e.g. xau-signals">
+      <small>Create a public GitHub repo and upload the files from your project folder. Signal params auto-update nightly via Claude.</small>
+    </div>
+  </div>
+
+  <button class="btn" onclick="saveSettings()">💾 Save & Reload</button>
+  <div class="save-msg" id="saveMsg"></div>
+</div>
+
+<button class="fab" id="fab" onclick="refresh()" title="Refresh">⟳</button>
+
+<script>
+// ── STORAGE ──
+const LS = {
+  get: k => localStorage.getItem(k) || '',
+  set: (k,v) => localStorage.setItem(k, v)
+};
+
+// ── HELPERS ──
+const fmt = (n,d=2) => Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const $ = id => document.getElementById(id);
+
+function showSettings(){
+  $('mainScreen').classList.remove('active');
+  $('settingsScreen').classList.add('active');
+  $('fmpKey').value = LS.get('fmpKey');
+  $('ghUser').value = LS.get('ghUser');
+  $('ghRepo').value = LS.get('ghRepo');
+  $('fab').style.display = 'none';
+  if (!LS.get('fmpKey')) $('setupNotice').style.display = 'block';
+}
+
+function showMain(){
+  $('settingsScreen').classList.remove('active');
+  $('mainScreen').classList.add('active');
+  $('fab').style.display = 'flex';
+  loadData();
+}
+
+function saveSettings(){
+  LS.set('fmpKey', $('fmpKey').value.trim());
+  LS.set('ghUser', $('ghUser').value.trim());
+  LS.set('ghRepo', $('ghRepo').value.trim());
+  $('saveMsg').textContent = '✓ Saved!';
+  setTimeout(() => { $('saveMsg').textContent=''; showMain(); }, 800);
+}
+
+// ── SIGNAL STATUS ──
+function distToZone(p, low, high){
+  if(p >= low && p <= high) return 0;
+  return p < low ? low - p : p - high;
+}
+function getStatus(p, low, high, inv, dir){
+  if(dir==='SHORT' && p >= inv) return 'INVALIDATED';
+  if(dir==='LONG'  && p <= inv) return 'INVALIDATED';
+  if(p >= low && p <= high) return 'IN_ZONE';
+  return distToZone(p,low,high) <= 10 ? 'APPROACHING' : 'STANDBY';
+}
+const SM = {
+  STANDBY:     {cls:'standby',    icon:'🔴', label:'STANDBY',       hint:'Price is away from the entry zone.'},
+  APPROACHING: {cls:'approaching',icon:'🟡', label:'APPROACHING',    hint:'Within $10 — open your chart and prepare.'},
+  IN_ZONE:     {cls:'inzone',     icon:'🟢', label:'IN ENTRY ZONE', hint:'Confirm the 15M candle signal, then execute.'},
+  INVALIDATED: {cls:'invalidated',icon:'❌', label:'INVALIDATED',    hint:'Invalidation hit — FLIP setup is now active.'},
+};
+const CM = {STANDBY:'dc-standby',APPROACHING:'dc-approaching',IN_ZONE:'dc-inzone',INVALIDATED:'dc-invalidated'};
+
+// ── RENDER ──
+function renderSetup(sig, price, key, label){
+  const dir = sig[key+'_direction'];
+  const low = sig[key+'_entry_zone_low'];
+  const high = sig[key+'_entry_zone_high'];
+  const sl = sig[key+'_stop_loss'];
+  const tp = sig[key+'_take_profit'];
+  const lots = sig[key+'_lot_size'];
+  const riskD = sig[key+'_risk_dollar'];
+  const riskP = sig[key+'_actual_risk_pct'];
+  const rewD = sig[key+'_reward_dollar'];
+  const rewP = sig[key+'_reward_pct'];
+  const inv = sig[key+'_invalidation'];
+  const signal = sig[key+'_entry_signal'];
+
+  if(!dir || dir==='NO TRADE') return `<div class="setup-card" style="opacity:.5"><div class="setup-top"><div><span class="setup-tag">${label} Setup</span><div class="setup-dir" style="color:var(--muted)">— No Setup</div></div></div></div>`;
+
+  const st = getStatus(price, low, high, inv, dir);
+  const dist = distToZone(price, low, high);
+  const sc = SM[st];
+  const isS = dir==='SHORT';
+  const dc = isS ? 'short':'long';
+  const di = isS ? '↓ SHORT':'↑ LONG';
+  const pc = label==='PRIMARY' ? 'pill-p':'pill-f';
+
+  const distHtml = st==='IN_ZONE'
+    ? `<span class="dist-chip dc-inzone">✓ IN ZONE</span>`
+    : st==='INVALIDATED'
+    ? `<span class="dist-chip dc-invalidated">✗ INVALIDATED</span>`
+    : `<span class="dist-chip ${CM[st]}">$${fmt(dist)} away</span>`;
+
+  const sbCls = st==='IN_ZONE' ? 'sig-box live':'sig-box';
+  const sbPre = st==='IN_ZONE' ? '🚨 CONFIRM NOW: ':'👁 Watch for: ';
+
+  return `<div class="setup-card ${dc}">
+<div class="setup-top">
+  <div><span class="setup-tag">${label} Setup</span>
+  <div class="setup-dir ${dc}">${di}<span class="pill ${pc}">${label}</span></div></div>
+  <div class="st-mini"><div class="st-emoji">${sc.icon}</div><div class="st-lbl">${sc.label}</div></div>
+</div>
+<div class="div"></div>
+<div class="row"><span class="rl">Entry Zone</span><span class="rv b">$${fmt(low)} – $${fmt(high)}</span></div>
+<div class="row"><span class="rl">Distance</span><span>${distHtml}</span></div>
+<div class="row"><span class="rl">Stop Loss</span><span class="rv r">$${fmt(sl)}</span></div>
+<div class="row"><span class="rl">Take Profit</span><span class="rv g">$${fmt(tp)}</span></div>
+<div class="div"></div>
+<div class="row"><span class="rl">Lot Size</span><span class="rv">${lots} lot</span></div>
+<div class="row"><span class="rl">Risk</span><span class="rv r">$${fmt(riskD)} (${riskP}%)</span></div>
+<div class="row"><span class="rl">Reward</span><span class="rv g">$${fmt(rewD)} (${rewP}%)</span></div>
+<div class="row"><span class="rl">Invalidation</span><span class="rv r">$${fmt(inv)}</span></div>
+<div class="${sbCls}">${sbPre}${signal}</div>
+</div>`;
+}
+
+function renderMain(price, chg, chgPct, dayLow, dayHigh, avg50, avg200, sig){
+  const isUp = chg >= 0;
+  const pSt = getStatus(price, sig.primary_entry_zone_low, sig.primary_entry_zone_high, sig.primary_invalidation, sig.primary_direction);
+  const fSt = getStatus(price, sig.flip_entry_zone_low, sig.flip_entry_zone_high, sig.flip_invalidation, sig.flip_direction);
+
+  let bSt = pSt, bDir = sig.primary_direction, bLbl = 'PRIMARY';
+  if(pSt==='INVALIDATED'){ bSt=fSt; bDir=sig.flip_direction; bLbl='FLIP'; }
+  const sc = SM[bSt];
+
+  const now = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  $('lastUpdated').textContent = `Live · Updated ${now}`;
+  $('footer').textContent = `Signal params: ${sig.date} · GCUSD via FMP`;
+
+  const actionHtml = bSt==='IN_ZONE'
+    ? `<div class="s-action">⚡ CHECK 15M CHART NOW</div>`
+    : bSt==='APPROACHING'
+    ? `<div class="s-action">👁 WATCH YOUR CHART</div>`
+    : '';
+
+  const trumpClass = `trump-${sig.trump_risk||'MEDIUM'}`;
+  const trumpIcon = sig.trump_risk==='HIGH'?'🔴':sig.trump_risk==='LOW'?'🟢':'🟡';
+
+  $('mainContent').innerHTML = `
+<div class="price-card">
+  <div class="price-row">
+    <div>
+      <div class="price-big">$${fmt(price)}</div>
+      <div class="price-change ${isUp?'up':'down'}">${isUp?'+':''}${fmt(chg)} (${isUp?'+':''}${fmt(chgPct)}%)</div>
+    </div>
+    <div style="text-align:right;color:var(--dim);font-size:10px;font-weight:700;text-transform:uppercase">GOLD<br>FUTURES</div>
+  </div>
+  <div class="price-meta">
+    <div class="meta-box"><div class="meta-lbl">Day Low</div><div class="meta-val">$${fmt(dayLow)}</div></div>
+    <div class="meta-box"><div class="meta-lbl">Day High</div><div class="meta-val">$${fmt(dayHigh)}</div></div>
+    <div class="meta-box"><div class="meta-lbl">50D Avg</div><div class="meta-val">$${fmt(avg50)}</div></div>
+    <div class="meta-box"><div class="meta-lbl">200D Avg</div><div class="meta-val">$${fmt(avg200)}</div></div>
+  </div>
+</div>
+
+<div class="status-banner banner-${sc.cls}">
+  <div class="s-icon">${sc.icon}</div>
+  <div class="s-body">
+    <div class="s-title">${sc.label}</div>
+    <div style="font-size:12px;font-weight:700;margin-top:1px">${bLbl} ${bDir}</div>
+    <div class="s-hint">${sc.hint}</div>
+    ${actionHtml}
+  </div>
+</div>
+
+${renderSetup(sig, price, 'primary', 'PRIMARY')}
+${renderSetup(sig, price, 'flip', 'FLIP')}
+
+<div class="info-card">
+  <div class="card-title">⚙️ Account & Context</div>
+  <div class="irow"><span class="il">Account</span><span class="iv">$100.00 USD</span></div>
+  <div class="irow"><span class="il">Leverage</span><span class="iv">50:1 · forex.com</span></div>
+  <div class="irow"><span class="il">Swing Bias</span><span class="iv bias-${sig.swing_bias}">${sig.swing_bias==='BEARISH'?'↓':sig.swing_bias==='BULLISH'?'↑':'→'} ${sig.swing_bias}</span></div>
+  <div class="irow"><span class="il">Trump Risk</span><span class="${trumpClass}">${trumpIcon} ${sig.trump_risk}</span></div>
+  <div class="irow" style="align-items:flex-start;padding-top:7px">
+    <span class="il">Resistance</span>
+    <span><div class="lvls"><span class="lvl-r">$${fmt(sig.key_resistance_1,0)}</span><span class="lvl-r">$${fmt(sig.key_resistance_2,0)}</span></div></span>
+  </div>
+  <div class="irow" style="align-items:flex-start;padding-top:7px">
+    <span class="il">Support</span>
+    <span><div class="lvls"><span class="lvl-s">$${fmt(sig.key_support_1,0)}</span><span class="lvl-s">$${fmt(sig.key_support_2,0)}</span></div></span>
+  </div>
+  <div class="notes-box">⚠️ ${sig.notes}</div>
+</div>`;
+}
+
+// ── DATA LOADING ──
+let refreshTimer = null;
+
+async function loadData(){
+  const fmpKey = LS.get('fmpKey');
+  const ghUser = LS.get('ghUser');
+  const ghRepo = LS.get('ghRepo');
+
+  if(!fmpKey || !ghUser || !ghRepo){
+    $('mainContent').innerHTML = `<div class="err-box">⚙️ Setup required — tap the gear icon to enter your FMP API key and GitHub details.</div>`;
+    $('lastUpdated').textContent = 'Not configured';
+    return;
+  }
+
+  $('fab').classList.add('loading');
+  $('fab').textContent = '…';
+
+  try{
+    const sigUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
+    const priceUrl = `https://financialmodelingprep.com/api/v3/quote/GCUSD?apikey=${fmpKey}`;
+
+    const [sigRes, priceRes] = await Promise.all([fetch(sigUrl), fetch(priceUrl)]);
+    if(!sigRes.ok) throw new Error(`Can't fetch signal params (${sigRes.status})`);
+    if(!priceRes.ok) throw new Error(`FMP API error (${priceRes.status})`);
+
+    const sig = await sigRes.json();
+    const priceData = await priceRes.json();
+    const q = Array.isArray(priceData) ? priceData[0] : priceData;
+
+    renderMain(q.price, q.change, q.changePercentage, q.dayLow, q.dayHigh, q.priceAvg50, q.priceAvg200, sig);
+
+    // Auto-refresh every 60s — single timeout, no ticking
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(loadData, 60000);
+
+  }catch(err){
+    $('mainContent').innerHTML = `<div class="err-box">⚠️ ${err.message}<br><br><button class="btn" onclick="loadData()" style="margin-top:8px">Try Again</button></div>`;
+    $('lastUpdated').textContent = 'Error loading data';
+  }
+
+  $('fab').classList.remove('loading');
+  $('fab').textContent = '⟳';
+}
+
+function refresh(){
+  clearTimeout(refreshTimer);
+  loadData();
+}
+
+// ── PWA SERVICE WORKER ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+// ── INIT ──
+loadData();
+</script>
+</body>
+</html>
