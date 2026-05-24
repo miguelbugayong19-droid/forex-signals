@@ -307,7 +307,7 @@ function renderMain(price, chg, chgPct, dayLow, dayHigh, avg50, avg200, sig){
 
   const now = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
   $('lastUpdated').textContent = `Live · Updated ${now}`;
-  $('footer').textContent = `Signal params: ${sig.date} · GCUSD via FMP`;
+  $('footer').textContent = `Signal params: ${sig.date} · XAUUSD via FMP`;
 
   const actionHtml = bSt==='IN_ZONE'
     ? `<div class="s-action">⚡ CHECK 15M CHART NOW</div>`
@@ -325,7 +325,7 @@ function renderMain(price, chg, chgPct, dayLow, dayHigh, avg50, avg200, sig){
       <div class="price-big">$${fmt(price)}</div>
       <div class="price-change ${isUp?'up':'down'}">${isUp?'+':''}${fmt(chg)} (${isUp?'+':''}${fmt(chgPct)}%)</div>
     </div>
-    <div style="text-align:right;color:var(--dim);font-size:10px;font-weight:700;text-transform:uppercase">GOLD<br>FUTURES</div>
+    <div style="text-align:right;color:var(--dim);font-size:10px;font-weight:700;text-transform:uppercase">XAU<br>USD</div>
   </div>
   <div class="price-meta">
     <div class="meta-box"><div class="meta-lbl">Day Low</div><div class="meta-val">$${fmt(dayLow)}</div></div>
@@ -385,7 +385,7 @@ async function loadData(){
 
   try{
     const sigUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
-    const priceUrl = `https://financialmodelingprep.com/api/v3/quote/GCUSD?apikey=${fmpKey}`;
+    const priceUrl = `https://financialmodelingprep.com/api/v3/fx/XAUUSD?apikey=${fmpKey}`;
 
     const [sigRes, priceRes] = await Promise.all([fetch(sigUrl), fetch(priceUrl)]);
     if(!sigRes.ok) throw new Error(`Can't fetch signal params (${sigRes.status})`);
@@ -395,7 +395,12 @@ async function loadData(){
     const priceData = await priceRes.json();
     const q = Array.isArray(priceData) ? priceData[0] : priceData;
 
-    renderMain(q.price, q.change, q.changePercentage, q.dayLow, q.dayHigh, q.priceAvg50, q.priceAvg200, sig);
+    // FMP forex endpoint fields: bid, ask, open, low, high, changes
+    const price = q.price ?? q.bid ?? q.ask;
+    const change = q.change ?? q.changes ?? 0;
+    const changePct = q.changePercentage ?? (price ? (change / (price - change)) * 100 : 0);
+
+    renderMain(price, change, changePct, q.dayLow ?? q.low, q.dayHigh ?? q.high, q.priceAvg50 ?? null, q.priceAvg200 ?? null, sig);
 
     // Auto-refresh every 60s — single timeout, no ticking
     clearTimeout(refreshTimer);
