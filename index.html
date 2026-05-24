@@ -385,7 +385,7 @@ async function loadData(){
 
   try{
     const sigUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
-    const priceUrl = `https://financialmodelingprep.com/api/v3/fx/XAUUSD?apikey=${fmpKey}`;
+    const priceUrl = `https://financialmodelingprep.com/stable/quote?symbol=XAUUSD&apikey=${fmpKey}`;
 
     const [sigRes, priceRes] = await Promise.all([fetch(sigUrl), fetch(priceUrl)]);
     if(!sigRes.ok) throw new Error(`Can't fetch signal params (${sigRes.status})`);
@@ -395,12 +395,11 @@ async function loadData(){
     const priceData = await priceRes.json();
     const q = Array.isArray(priceData) ? priceData[0] : priceData;
 
-    // FMP forex endpoint fields: bid, ask, open, low, high, changes
-    const price = q.price ?? q.bid ?? q.ask;
-    const change = q.change ?? q.changes ?? 0;
-    const changePct = q.changePercentage ?? (price ? (change / (price - change)) * 100 : 0);
+    const price = q.price;
+    const change = q.change ?? 0;
+    const changePct = q.changesPercentage ?? q.changePercentage ?? 0;
 
-    renderMain(price, change, changePct, q.dayLow ?? q.low, q.dayHigh ?? q.high, q.priceAvg50 ?? null, q.priceAvg200 ?? null, sig);
+    renderMain(price, change, changePct, q.dayLow, q.dayHigh, q.priceAvg50 ?? null, q.priceAvg200 ?? null, sig);
 
     // Auto-refresh every 60s — single timeout, no ticking
     clearTimeout(refreshTimer);
