@@ -428,12 +428,19 @@ function confirmEntry(key){
   const price = parseFloat(($('entryInput_'+key)||{}).value||'0');
   if(!sig||!price) return;
   const sl  = sig[key+'_stop_loss'];
-  const tp  = sig[key+'_take_profit'];
   const dir = sig[key+'_direction'];
   const lots= sig[key+'_lot_size']||0.01;
+
+  // Recalculate SL distance and TP from actual entry price at 1:2 R:R
   const slDist = Math.abs(price - sl);
-  const bePrice = price; // breakeven = entry
-  POS.set({ dir, entry: price, sl, tp, lots, slDist, bePrice, slMoved: false,
+  const tp = dir==='SHORT' ? price - (slDist * 2) : price + (slDist * 2);
+
+  // Recalculate actual risk and reward based on real entry
+  const riskDollar  = lots * 100 * slDist;
+  const rewardDollar = lots * 100 * slDist * 2;
+
+  POS.set({ dir, entry: price, sl, tp, lots, slDist, riskDollar, rewardDollar,
+             bePrice: price, slMoved: false,
              label: key==='primary'?'PRIMARY':'FLIP', key, ts: Date.now() });
   _enteringFor = null;
   refresh();
@@ -488,6 +495,8 @@ function renderPositionCard(pos, currentPrice){
 <div class="row"><span class="rl">Stop Loss</span><span class="rv r">$${fmt(pos.sl)} <span style="font-size:10px;color:var(--dim)">(${fmt(slDist)} away)</span></span></div>
 <div class="row"><span class="rl">Take Profit</span><span class="rv g">$${fmt(pos.tp)} <span style="font-size:10px;color:var(--dim)">(${fmt(tpDist)} away)</span></span></div>
 <div class="row"><span class="rl">Lot Size</span><span class="rv">${pos.lots} lot</span></div>
+<div class="row"><span class="rl">Risk</span><span class="rv r">$${fmt(pos.riskDollar||pos.slDist*pos.lots*100)}</span></div>
+<div class="row"><span class="rl">Reward (1:2)</span><span class="rv g">$${fmt(pos.rewardDollar||pos.slDist*pos.lots*100*2)}</span></div>
 ${beHtml}${hitHtml}
 <button class="btn-exit" onclick="exitPosition()">✕ Close / Exit Position</button>
 </div>`;
