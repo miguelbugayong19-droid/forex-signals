@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <title>XAUUSD Signals</title>
 <style>
-:root{color-scheme:dark;--bg:#0d1117;--card:#161b22;--border:#30363d;--border2:#21262d;--text:#e6edf3;--text2:#c9d1d9;--muted:#8b949e;--dim:#484f58;--green:#3fb950;--red:#f85149;--blue:#58a6ff;--amber:#e3b341;--green-bg:#0f2a1a;--green-bd:#238636;--red-bg:#2d0f0f;--red-bd:#da3633;--amber-bg:#2d1f00;--amber-bd:#9e6a03}
+:root{color-scheme:dark;--bg:#0d1117;--card:#161b22;--border:#30363d;--border2:#21262d;--text:#e6edf3;--text2:#c9d1d9;--muted:#8b949e;--dim:#484f58;--green:#3fb950;--red:#f85149;--blue:#58a6ff;--amber:#e3b341;--orange:#f0883e;--green-bg:#0f2a1a;--green-bd:#238636;--red-bg:#2d0f0f;--red-bd:#da3633;--amber-bg:#2d1f00;--amber-bd:#9e6a03;--orange-bg:#2d1a00;--orange-bd:#a04010}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;overscroll-behavior:none}
 body{padding:env(safe-area-inset-top,12px) env(safe-area-inset-right,12px) env(safe-area-inset-bottom,12px) env(safe-area-inset-left,12px);padding-top:max(env(safe-area-inset-top),12px)}
@@ -50,6 +50,8 @@ body{padding:env(safe-area-inset-top,12px) env(safe-area-inset-right,12px) env(s
 .banner-approaching .s-action{background:#3d2200;border-color:var(--amber-bd);color:var(--amber)}
 .banner-inzone{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
 .banner-inzone .s-action{background:#122d1c;border-color:var(--green-bd);color:var(--green)}
+.banner-leftzone{background:var(--orange-bg);border-color:var(--orange-bd);color:var(--orange)}
+.banner-leftzone .s-action{background:#3d1a00;border-color:var(--orange-bd);color:var(--orange)}
 .banner-invalidated{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
 .banner-invalidated .s-action{background:#3d1212;border-color:var(--red-bd);color:var(--red)}
 
@@ -252,13 +254,20 @@ function getStatus(p, low, high, inv, dir){
   if(dir==='SHORT' && p >= inv) return 'INVALIDATED';
   if(dir==='LONG'  && p <= inv) return 'INVALIDATED';
   if(p >= low && p <= high) return 'IN_ZONE';
-  return distToZone(p,low,high) <= 10 ? 'APPROACHING' : 'STANDBY';
+  const dist = distToZone(p, low, high);
+  if(dist > 10) return 'STANDBY';
+  // Within $10 — distinguish approaching vs left
+  if(dir==='SHORT') return p > high ? 'NEAR_ABOVE' : 'LEFT_ZONE';
+  if(dir==='LONG')  return p < low  ? 'NEAR_BELOW' : 'LEFT_ZONE';
+  return 'NEAR_ABOVE';
 }
 const SM = {
-  STANDBY:     {cls:'standby',    icon:'🔴', label:'STANDBY',       hint:'Price is away from the entry zone.'},
-  APPROACHING: {cls:'approaching',icon:'🟡', label:'APPROACHING',    hint:'Within $10 — open your chart and prepare.'},
-  IN_ZONE:     {cls:'inzone',     icon:'🟢', label:'IN ENTRY ZONE', hint:'Confirm the 15M candle signal, then execute.'},
-  INVALIDATED: {cls:'invalidated',icon:'❌', label:'INVALIDATED',    hint:'Invalidation hit — FLIP setup is now active.'},
+  STANDBY:    {cls:'standby',    icon:'🔴', label:'STANDBY',        hint:'Price is away from the entry zone. Monitor only.'},
+  NEAR_ABOVE: {cls:'approaching',icon:'🟡', label:'NEAR ZONE',      hint:'Within $10 above zone — could drop in. Watch your chart.'},
+  NEAR_BELOW: {cls:'approaching',icon:'🟡', label:'NEAR ZONE',      hint:'Within $10 below zone — could push in. Watch your chart.'},
+  LEFT_ZONE:  {cls:'approaching',icon:'🟠', label:'LEFT ZONE',      hint:'Price moved out of the entry zone. Wait for re-entry or next setup.'},
+  IN_ZONE:    {cls:'inzone',     icon:'🟢', label:'IN ENTRY ZONE',  hint:'Confirm the 15M candle signal, then execute.'},
+  INVALIDATED:{cls:'invalidated',icon:'❌', label:'INVALIDATED',     hint:'Invalidation hit — FLIP setup is now active.'},
 };
 const CM = {STANDBY:'dc-standby',APPROACHING:'dc-approaching',IN_ZONE:'dc-inzone',INVALIDATED:'dc-invalidated'};
 
@@ -299,11 +308,14 @@ function renderSetup(sig, price, key, label){
   const pos = POS.get();
   const showEnter = !pos && (st==='IN_ZONE'||st==='APPROACHING');
   const isEntering = _enteringFor === key;
+  const defLots = sig[key+'_lot_size'] || 0.01;
   const enterHtml = showEnter ? `
 <button class="btn-enter" onclick="startEntry('${key}',${price});document.getElementById('entryModal_${key}').style.display='block'">⚡ ENTER POSITION</button>
 <div class="entry-modal" id="entryModal_${key}" style="display:${isEntering?'block':'none'}">
   <label>Entry Price</label>
   <input type="number" id="entryInput_${key}" step="0.01" value="${fmt(price,2)}">
+  <label style="margin-top:8px">Lot Size</label>
+  <input type="number" id="lotsInput_${key}" step="0.01" min="0.01" value="${defLots}">
   <div class="entry-btns">
     <button class="btn-confirm" onclick="confirmEntry('${key}')">Confirm Entry</button>
     <button class="btn-cancel2" onclick="cancelEntry('${key}');document.getElementById('entryModal_${key}').style.display='none'">Cancel</button>
@@ -429,7 +441,7 @@ function confirmEntry(key){
   if(!sig||!price) return;
   const sl  = sig[key+'_stop_loss'];
   const dir = sig[key+'_direction'];
-  const lots= sig[key+'_lot_size']||0.01;
+  const lots= parseFloat(($('lotsInput_'+key)||{}).value||sig[key+'_lot_size']||0.01);
 
   // Recalculate SL distance and TP from actual entry price at 1:2 R:R
   const slDist = Math.abs(price - sl);
@@ -503,15 +515,17 @@ ${beHtml}${hitHtml}
 }
 
 // ── DATA LOADING ──
-let refreshTimer = null;
+let fullTimer = null;
+let priceTimer = null;
+let _lastFullData = null; // cached sig + OHLC from last full refresh
 
-async function loadData(){
-  const fmpKey = LS.get('fmpKey');
+async function loadData(fullRefresh = true){
+  const apiKey = LS.get('fmpKey');
   const ghUser = LS.get('ghUser');
   const ghRepo = LS.get('ghRepo');
 
-  if(!fmpKey || !ghUser || !ghRepo){
-    $('mainContent').innerHTML = `<div class="err-box">⚙️ Setup required — tap the gear icon to enter your FMP API key and GitHub details.</div>`;
+  if(!apiKey || !ghUser || !ghRepo){
+    $('mainContent').innerHTML = `<div class="err-box">⚙️ Setup required — tap the gear icon to enter your Twelve Data API key and GitHub details.</div>`;
     $('lastUpdated').textContent = 'Not configured';
     return;
   }
@@ -520,30 +534,43 @@ async function loadData(){
   $('fab').textContent = '…';
 
   try{
-    const sigUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
-    const priceUrl = `https://api.twelvedata.com/quote?symbol=XAU/USD&apikey=${fmpKey}`;
+    if(fullRefresh || !_lastFullData){
+      // Full refresh: fetch signal params + full quote (OHLC)
+      const sigUrl   = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/signal_params.json?t=${Date.now()}`;
+      const quoteUrl = `https://api.twelvedata.com/quote?symbol=XAU/USD&apikey=${apiKey}`;
+      const [sigRes, quoteRes] = await Promise.all([fetch(sigUrl), fetch(quoteUrl)]);
+      if(!sigRes.ok)   throw new Error(`Can't fetch signal params (${sigRes.status})`);
+      if(!quoteRes.ok) throw new Error(`Price API error (${quoteRes.status})`);
+      const sig = await sigRes.json();
+      const q   = await quoteRes.json();
+      if(q.status === 'error') throw new Error(`Twelve Data: ${q.message}`);
+      _lastFullData = { sig, q };
 
-    const [sigRes, priceRes] = await Promise.all([fetch(sigUrl), fetch(priceUrl)]);
-    if(!sigRes.ok) throw new Error(`Can't fetch signal params (${sigRes.status})`);
-    if(!priceRes.ok) throw new Error(`Price API error (${priceRes.status})`);
+      // Schedule next full refresh in 30 min
+      clearTimeout(fullTimer);
+      fullTimer = setTimeout(() => loadData(true), 1800000);
+    } else {
+      // Price-only refresh: 1 credit, just current price
+      const priceRes = await fetch(`https://api.twelvedata.com/price?symbol=XAU/USD&apikey=${apiKey}`);
+      if(!priceRes.ok) throw new Error(`Price API error (${priceRes.status})`);
+      const pd = await priceRes.json();
+      if(pd.status === 'error') throw new Error(`Twelve Data: ${pd.message}`);
+      // Patch cached quote with live price
+      _lastFullData.q.close = pd.price;
+    }
 
-    const sig = await sigRes.json();
-    const q = await priceRes.json();
-
-    if(q.status === 'error') throw new Error(`Twelve Data: ${q.message}`);
-
-    const price = parseFloat(q.close);
-    const change = parseFloat(q.change ?? 0);
-    const changePct = parseFloat(q.percent_change ?? 0);
-
+    const { sig, q } = _lastFullData;
+    const price    = parseFloat(q.close);
+    const change   = parseFloat(q.change ?? 0);
+    const changePct= parseFloat(q.percent_change ?? 0);
     renderMain(price, change, changePct, parseFloat(q.low), parseFloat(q.high), parseFloat(q.open), parseFloat(q.previous_close), sig);
 
-    // Auto-refresh every 15 min (matches signal monitor cadence)
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(loadData, 900000);
+    // Price-only refresh every 2 min
+    clearTimeout(priceTimer);
+    priceTimer = setTimeout(() => loadData(false), 120000);
 
   }catch(err){
-    $('mainContent').innerHTML = `<div class="err-box">⚠️ ${err.message}<br><br><button class="btn" onclick="loadData()" style="margin-top:8px">Try Again</button></div>`;
+    $('mainContent').innerHTML = `<div class="err-box">⚠️ ${err.message}<br><br><button class="btn" onclick="refresh()" style="margin-top:8px">Try Again</button></div>`;
     $('lastUpdated').textContent = 'Error loading data';
   }
 
@@ -552,8 +579,9 @@ async function loadData(){
 }
 
 function refresh(){
-  clearTimeout(refreshTimer);
-  loadData();
+  clearTimeout(fullTimer);
+  clearTimeout(priceTimer);
+  loadData(true);
 }
 
 // ── PWA SERVICE WORKER ──
